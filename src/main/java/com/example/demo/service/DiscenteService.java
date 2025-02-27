@@ -1,106 +1,135 @@
 package com.example.demo.service;
 
+import com.example.demo.DTO.CorsoDTO;
 import com.example.demo.DTO.DiscenteDTO;
 import com.example.demo.entity.Corso;
 import com.example.demo.entity.Discente;
 import com.example.demo.repository.CorsoRepository;
 import com.example.demo.repository.DiscenteRepository;
-import com.example.demo.utils.DiscenteConverter;
-import jakarta.persistence.EntityManager;
+import com.example.demo.utils.DiscenteMapper;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class DiscenteService {
 
     private final DiscenteRepository discenteRepository;
     private final CorsoRepository corsoRepository;
-   // @PersistenceContext
-    private EntityManager entityManager;
-
-    public DiscenteService(
-            DiscenteRepository discenteRepository,
-            CorsoRepository corsoRepository,
-            EntityManager entityManager) {
-        this.discenteRepository = discenteRepository;
-        this.corsoRepository = corsoRepository;
-       // this.entityManager = entityManager;
-    }
+    private final DiscenteMapper discenteMapper;
 
     public List<DiscenteDTO> findAll() {
-        return DiscenteConverter.convertToDiscentiDTOWithCorsiDTO(discenteRepository.findAll());
+        return discenteRepository.findAll().stream()
+                .map(discenteMapper::toDTO)
+                .collect(Collectors.toList());
     }
-    public DiscenteDTO getDiscenteById(Integer id) {
-        Optional<Discente> discente = discenteRepository.findById(id);
 
-        if (discente.isPresent()) {
-            return DiscenteConverter.convertToDTOWithCorsiDTO(discente.get());
-        }
-        else {
-            throw new EntityNotFoundException("Discente not found");
-        }
+    public DiscenteDTO findById(Integer id) {
+        Discente discente = discenteRepository.findById(id).orElseThrow(() ->
+                new EntityNotFoundException("Discente Not Found"));
+        return discenteMapper.toDTO(discente);
     }
-    public DiscenteDTO insertDiscente(DiscenteDTO discenteDTO) {
-        Discente discente = DiscenteConverter.convertToDiscente(discenteDTO);
+
+    public List<DiscenteDTO> filterForCorso(Integer idCorso) {
+        return discenteRepository.filterForCorso(idCorso).stream()
+                .map(discenteMapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public DiscenteDTO insert(DiscenteDTO discenteDTO) {
+        Discente discente = discenteMapper.toEntity(discenteDTO);
+        if(!discenteDTO.getCorsiDTO().isEmpty()){
+            for(CorsoDTO corsoDTO : discenteDTO.getCorsiDTO()){
+             Corso corso =  corsoRepository.findById(corsoDTO.getId()).orElseThrow(() ->
+                        new EntityNotFoundException("Corso Not Found"));
+             corso.getDiscenti().add(discente);
+            }
+        }
         discenteRepository.save(discente);
-        return DiscenteConverter.convertToDTOWithCorsiDTO(discente);
+        return discenteMapper.toDTO(discente);
     }
-    public DiscenteDTO updateDiscente(Integer id, DiscenteDTO discenteDTO) {
-        Optional<Discente> discente = discenteRepository.findById(id);
-        if(discente.isPresent()){
-            discente.get().setNome(discenteDTO.getNome());
-            discente.get().setCognome(discenteDTO.getCognome());
-            discente.get().setDataNascita(discenteDTO.getDataNascita());
-            discente.get().setMatricola(discenteDTO.getMatricola());
-            discenteRepository.save(discente.get());
-            return DiscenteConverter.convertToDTOWithCorsiDTO(discente.get());
+
+    @Transactional
+    public DiscenteDTO update(Integer id, DiscenteDTO discenteDTO) {
+        Discente discente = discenteRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Discente Not Found"));
+
+        discente.setNome(discenteDTO.getNome());
+        discente.setCognome(discenteDTO.getCognome());
+        discente.setDataNascita(discenteDTO.getDataNascita());
+        discente.setMatricola(discenteDTO.getMatricola());
+
+        List<Corso> corsi = new ArrayList<>();
+
+        for (Corso corso : discente.getCorsi()) {
+            corso.getDiscenti().remove(discente);
         }
-        else {
-            throw  new EntityNotFoundException();
+        for(CorsoDTO corsoDTO : discenteDTO.getCorsiDTO()){
+            Corso corso = corsoRepository.findById(corsoDTO.getId()).orElseThrow();
+            corsi.add(corso);
         }
 
+        discente.getCorsi().clear();
+        discente.getCorsi().addAll(corsi);
+
+        for (Corso corso : discente.getCorsi()) {
+            corso.getDiscenti().add(discente);
+        }
+
+        discenteRepository.save(discente);
+        return discenteMapper.toDTO(discente);
     }
-    @Transactional // Assicura che i metodi siano eseguiti all’interno di una transazione
-    public DiscenteDTO deleteDiscente(Integer id) {
-    Optional<Discente> discente = discenteRepository.findById(id);
-    if (discente.isPresent()) {
-        DiscenteDTO discenteDTO = DiscenteConverter.convertToDTOWithCorsiDTO(discente.get());
 
-        for (Corso corso : discente.get().getCorsi()) {
-            corso.getDiscenti().remove(discente.get());
-            //entityManager.merge(corso);
+    @Transactional
+    public DiscenteDTO delete(Integer id) {
+        Discente discente = discenteRepository.findById(id).orElseThrow(() ->
+                new EntityNotFoundException("Discente Not Found"));
+
+        for (Corso corso : discente.getCorsi()) {
+            corso.getDiscenti().remove(discente);
         }
-        discente.get().getCorsi().clear();
 
-        discenteRepository.deleteById(id);
+        DiscenteDTO discenteDTO = discenteMapper.toDTO(discente);
+        discenteRepository.delete(discente);
         return discenteDTO;
     }
-    else {
-        throw new EntityNotFoundException("Discente not found");
-    }
-}
+
     @Transactional
-    public DiscenteDTO addCorso(Integer idCorso, Integer idDiscente) {
-        Optional<Corso> corso = corsoRepository.findById(idCorso);
-        Optional<Discente> discente = discenteRepository.findById(idDiscente);
-        if(corso.isPresent() && discente.isPresent()){
-            if(!discente.get().getCorsi().contains(corso.get())){
-                discente.get().getCorsi().add(corso.get());
-                corso.get().getDiscenti().add(discente.get());
-                discenteRepository.save(discente.get());
-                return DiscenteConverter.convertToDTOWithCorsiDTO(discente.get());
-            }
-            else {
-                throw  new EntityNotFoundException("Corso già presente");
-            }
+    public DiscenteDTO removeCorso(Integer idDiscente, CorsoDTO corsoDTO) {
+        Discente discente = discenteRepository.findById(idDiscente).orElseThrow(() ->
+                new EntityNotFoundException("Discente Not Found"));
+        Corso corso = corsoRepository.findById(corsoDTO.getId()).orElseThrow(() ->
+                new EntityNotFoundException("Corso Not Found"));
+
+        if (discente.getCorsi().contains(corso)) {
+            discente.getCorsi().remove(corso);
+            corso.getDiscenti().remove(discente);
+            discenteRepository.save(discente);
+            return discenteMapper.toDTO(discente);
         }
-        else {
-            throw new EntityNotFoundException("Corso not found");
+        else { throw new EntityNotFoundException("Corso non trovato"); }
+    }
+
+    @Transactional
+    public DiscenteDTO addCorso(Integer idDiscente, CorsoDTO corsoDTO) {
+        Discente discente = discenteRepository.findById(idDiscente).orElseThrow(() ->
+                new EntityNotFoundException("Discente Not Found"));
+        Corso corso = corsoRepository.findById(corsoDTO.getId()).orElseThrow(() ->
+                new EntityNotFoundException("Corso Not Found"));
+
+        if (!discente.getCorsi().contains(corso)) {
+            discente.getCorsi().add(corso);
+            corso.getDiscenti().add(discente);
+            discenteRepository.save(discente);
+            return discenteMapper.toDTO(discente);
         }
+        else { throw new EntityNotFoundException("Corso già presente"); }
     }
 }

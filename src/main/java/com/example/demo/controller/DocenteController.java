@@ -1,48 +1,42 @@
 package com.example.demo.controller;
 
 import com.example.demo.DTO.DocenteDTO;
-import com.example.demo.entity.Docente;
 import com.example.demo.service.DocenteService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/docenti")
+@RequiredArgsConstructor
 public class DocenteController {
 
     private final DocenteService docenteService;
-
-    public DocenteController(DocenteService docenteService) {
-        this.docenteService = docenteService;
-    }
 
     @GetMapping
     public List<DocenteDTO> findAll() {
         return docenteService.findAll();
     }
 
-    @GetMapping("/getDocenteById/{idDocente}")
-    public DocenteDTO getDocenteById(@PathVariable(name = "idDocente") Integer id) {
-        return docenteService.getDocentById(id);
+    @GetMapping("/{id}")
+    public DocenteDTO findById(@PathVariable Integer id) {
+        return docenteService.findById(id);
     }
 
-    @PostMapping("/insertDocente")
-    public DocenteDTO insertDocente(@RequestBody DocenteDTO docenteDTO) {
-       return docenteService.insertDocente(docenteDTO);
+    @PostMapping("/insert")
+    public DocenteDTO insert(@RequestBody DocenteDTO docenteDTO) {
+       return docenteService.insert(docenteDTO);
     }
 
-    @PutMapping("/updateDocente/{idDocente}")
-    public DocenteDTO updateDocente(@PathVariable(name = "idDocente") Integer id, @RequestBody DocenteDTO docenteDTO) {
-        return docenteService.updateDocente(id, docenteDTO);
+    @PutMapping("/update/{id}")
+    public DocenteDTO update(@PathVariable Integer id, @RequestBody DocenteDTO docenteDTO) {
+        return docenteService.update(id, docenteDTO);
     }
 
-    @DeleteMapping("/deleteDocente/{idDocente}")
-    public DocenteDTO deleteDocente(@PathVariable(name = "idDocente") Integer id) {
-        return docenteService.deleteDocente(id);
+    @DeleteMapping("/delete/{id}")
+    public DocenteDTO delete(@PathVariable Integer id) {
+        return docenteService.delete(id);
     }
-
-
-
 
 }

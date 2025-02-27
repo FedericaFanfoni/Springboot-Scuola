@@ -1,12 +1,19 @@
 package com.example.demo.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @Entity
 @Table(name = "corsi")
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Corso {
 
     @Id
@@ -26,53 +33,5 @@ public class Corso {
             joinColumns = @JoinColumn(name = "id_corso"),
             inverseJoinColumns = @JoinColumn(name = "id_discente"))
     private List<Discente> discenti;
-
-    public Integer getId(){
-        return this.id;
-    }
-
-    public String getNomeCorso(){
-        return this.nomeCorso;
-    }
-
-    public LocalDate getDataInizio(){
-        return this.dataInizio;
-    }
-
-    public Integer getDurata(){
-        return this.durata;
-    }
-
-    public Docente getDocente(){
-        return  this.docente;
-    }
-
-    public List<Discente> getDiscenti(){
-        return this.discenti;
-    }
-
-    public void setId(Integer id){
-        this.id = id;
-    }
-
-    public void setNomeCorso(String nomeCorso){
-        this.nomeCorso = nomeCorso;
-    }
-
-    public void setDataInizio(LocalDate dataInizio){
-        this.dataInizio = dataInizio;
-    }
-
-    public void setDurata(Integer durata){
-        this.durata = durata;
-    }
-
-    public void setDocente(Docente docente) {
-        this.docente = docente;
-    }
-
-    public void setDiscenti(List<Discente> discenti){
-        this.discenti = discenti;
-    }
 
 }
